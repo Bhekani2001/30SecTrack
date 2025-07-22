@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-multipart
+ 
+# Run API server (Windows):
+#   uvicorn app:app --reload
+# Run API server (Linux/macOS):
+#   uvicorn app:app --reload
+
+# Install packages (Windows):
+#   pip install -r requirements.txt
+# Install packages (Linux/macOS):
+#   pip install -r requirements.txt
