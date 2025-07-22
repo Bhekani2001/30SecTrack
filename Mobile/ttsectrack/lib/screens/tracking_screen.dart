@@ -8,6 +8,8 @@ import 'package:geocoding/geocoding.dart';
 
 import '../models/location_model.dart';
 import '../repositories/location_repository.dart';
+import '../services/api_service.dart';
+import '../services/device_service.dart';
 
 enum ConnectionStatus { unknown, connected, disconnected }
 
@@ -27,10 +29,15 @@ class _TrackingScreenState extends State<TrackingScreen> {
   StreamSubscription<Position>? _positionSubscription;
 
   final LocationRepository _locationRepository = LocationRepository();
+  final ApiService _apiService = ApiService(baseUrl: 'http://YOUR_FASTAPI_URL'); // Replace with your FastAPI URL
+  final DeviceService _deviceService = DeviceService();
+  String? unitId;
+  Timer? _apiTimer;
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _apiTimer?.cancel();
     super.dispose();
   }
 
@@ -38,6 +45,39 @@ class _TrackingScreenState extends State<TrackingScreen> {
     setState(() {
       _isTracking = true;
       _errorMessage = null;
+    });
+
+    // Get device unitId
+    unitId = await _deviceService.getDeviceId();
+
+    // Start API sync timer
+    _apiTimer?.cancel();
+    _apiTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+      if (_position != null && unitId != null) {
+        final location = LocationModel(
+          latitude: _position!.latitude,
+          longitude: _position!.longitude,
+          accuracy: _position!.accuracy,
+          timestamp: _position!.timestamp,
+        );
+        // Save to SQLite
+        await _locationRepository.saveLocation(location);
+        // Send to API
+        final success = await _apiService.sendLocation(
+          unitId: unitId!,
+          location: location,
+        );
+        if (!success) {
+          setState(() {
+            _status = ConnectionStatus.disconnected;
+            _errorMessage = 'Failed to sync with server.';
+          });
+        } else {
+          setState(() {
+            _status = ConnectionStatus.connected;
+          });
+        }
+      }
     });
 
     try {
@@ -84,22 +124,23 @@ class _TrackingScreenState extends State<TrackingScreen> {
   void _stopTracking() async {
     _positionSubscription?.cancel();
     _positionSubscription = null;
+    _apiTimer?.cancel();
     setState(() {
       _isTracking = false;
       _status = ConnectionStatus.unknown;
     });
 
-    // Save the last position to SQLite if available
-    if (_position != null) {
+    // Save the last position to SQLite and API if available
+    if (_position != null && unitId != null) {
       try {
-        await _locationRepository.saveLocation(
-          LocationModel(
-            latitude: _position!.latitude,
-            longitude: _position!.longitude,
-            accuracy: _position!.accuracy,
-            timestamp: _position!.timestamp,
-          ),
+        final location = LocationModel(
+          latitude: _position!.latitude,
+          longitude: _position!.longitude,
+          accuracy: _position!.accuracy,
+          timestamp: _position!.timestamp,
         );
+        await _locationRepository.saveLocation(location);
+        await _apiService.sendLocation(unitId: unitId!, location: location);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

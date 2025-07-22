@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tracking_screen.dart';
+import 'account_screen.dart';
 import 'history_screen.dart';
 import 'about_screen.dart';
 
@@ -115,6 +116,20 @@ class HomeScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const HistoryScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildDrawerItem(
+              context,
+              icon: Icons.account_circle,
+              title: 'Account',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AccountScreen(),
                   ),
                 );
               },

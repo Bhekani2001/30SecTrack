@@ -20,7 +20,7 @@ class AboutScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 48,
                   backgroundImage: const AssetImage(
-                    'lib/assets/images/logo.jpg',
+                    'lib/assets/images/MobitraLogo.png',
                   ),
                   backgroundColor: Colors.white,
                 ),
