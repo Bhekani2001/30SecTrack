@@ -3,6 +3,10 @@ uvicorn
 sqlalchemy
 pydantic
 python-multipart
+pydantic[email]
+passlib[bcrypt]
+python-jose[cryptography]
+
  
 # Run API server (Windows):
 #   uvicorn app:app --reload
