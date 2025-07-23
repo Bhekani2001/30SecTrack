@@ -280,13 +280,20 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Status card
-            _buildStatusCard(),
+            // Status and location cards in a row, matching TrackingScreen
+            Row(
+              children: [
+                Expanded(child: _buildStatusCard()),
+              ],
+            ),
             const SizedBox(height: 16),
-            // Current location card
-            _buildLocationCard(),
+            Row(
+              children: [
+                Expanded(child: _buildLocationCard()),
+              ],
+            ),
             const SizedBox(height: 16),
-            // History list with FutureBuilder
+            // History list with FutureBuilder (keep this part)
             Expanded(
               child: FutureBuilder<List<LocationModel>>(
                 future: _historyFuture,
@@ -297,7 +304,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                   if (snapshot.hasError) {
                     return Center(
                       child: Text(
-                        'Error loading history: ${snapshot.error}',
+                        'Error loading history: [${snapshot.error}',
                         style: const TextStyle(color: Colors.red),
                       ),
                     );
@@ -307,8 +314,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                     return Center(
                       child: Text(
                         'No saved locations.',
-                        style:
-                            TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
                       ),
                     );
                   }
@@ -345,8 +351,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                               icon: const Icon(Icons.copy, color: Colors.grey),
                               tooltip: 'Copy coordinates',
                               onPressed: () {
-                                final coords =
-                                    '${loc.latitude}, ${loc.longitude}';
+                                final coords = '${loc.latitude}, ${loc.longitude}';
                                 Clipboard.setData(ClipboardData(text: coords));
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
