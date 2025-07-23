@@ -31,7 +31,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
 
   final LocationRepository _locationRepository = LocationRepository();
   final ApiService _apiService =
-      ApiService(baseUrl: 'http://YOUR_FASTAPI_URL'); // Replace with your API URL
+      ApiService(baseUrl: 'http://127.0.0.1:8000/tracking'); // Replace with your API URL
   final DeviceService _deviceService = DeviceService();
 
   String? unitId;
@@ -280,7 +280,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Status and location cards in a row, matching TrackingScreen
+
             Row(
               children: [
                 Expanded(child: _buildStatusCard()),
@@ -304,7 +304,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                   if (snapshot.hasError) {
                     return Center(
                       child: Text(
-                        'Error loading history: [${snapshot.error}',
+                        'Error loading history: [${snapshot.error}',
                         style: const TextStyle(color: Colors.red),
                       ),
                     );

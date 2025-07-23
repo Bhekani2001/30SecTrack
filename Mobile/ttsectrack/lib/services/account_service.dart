@@ -1,27 +1,115 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 import '../models/account_model.dart';
 import '../repositories/account_repository.dart';
 
 class AccountService {
   final AccountRepository repository;
+
+  final String baseUrl = 'http://10.0.2.2:8000/api/accounts'; 
+
   AccountService(this.repository);
 
   Future<int> register(Account account) async {
-    return await repository.register(account);
+    final localId = await repository.register(account);
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(account.toMap()),
+      );
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to register on server');
+      }
+    } catch (e) {
+      print('API register failed: $e');
+    }
+
+    return localId;
   }
 
   Future<Account?> login(String email, String password) async {
-    return await repository.login(email, password);
+    Account? account = await repository.login(email, password);
+
+    if (account == null) {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email, 'password': password}),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          account = Account.fromMap(data);
+          await repository.register(account);
+        }
+      } catch (e) {
+        print('API login failed: $e');
+      }
+    }
+
+    return account;
   }
 
   Future<Account?> getProfile(int id) async {
-    return await repository.getProfile(id);
+    Account? account = await repository.getProfile(id);
+
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/$id'));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        account = Account.fromMap(data);
+        await repository.updateProfile(account); 
+      }
+    } catch (e) {
+      print('API getProfile failed: $e');
+    }
+
+    return account;
   }
 
   Future<int> updateProfile(Account account) async {
-    return await repository.updateProfile(account);
+    final rows = await repository.updateProfile(account);
+
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/${account.id}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(account.toMap()),
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update on server');
+      }
+    } catch (e) {
+      print('API updateProfile failed: $e');
+    }
+
+    return rows;
   }
 
   Future<Account?> forgotPassword(String email) async {
-    return await repository.forgotPassword(email);
+    Account? account = await repository.forgotPassword(email);
+
+    if (account == null) {
+      try {
+        final response = await http.post(
+          Uri.parse('$baseUrl/forgot-password'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email}),
+        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          account = Account.fromMap(data);
+          await repository.register(account);
+        }
+      } catch (e) {
+        print('API forgotPassword failed: $e');
+      }
+    }
+
+    return account;
   }
 }
