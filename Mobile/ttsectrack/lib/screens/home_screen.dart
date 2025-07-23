@@ -3,6 +3,7 @@ import 'tracking_screen.dart';
 import 'account_screen.dart';
 import 'history_screen.dart';
 import 'about_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -139,8 +140,11 @@ class HomeScreen extends StatelessWidget {
               icon: Icons.settings,
               title: 'Settings',
               onTap: () {
-                // TODO: Implement navigation to Settings screen
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                );
               },
             ),
             const Divider(height: 24, thickness: 1, indent: 16, endIndent: 16),

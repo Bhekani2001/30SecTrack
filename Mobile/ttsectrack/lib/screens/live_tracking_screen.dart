@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
-
 import 'package:intl/intl.dart';
 
 import '../models/location_model.dart';
@@ -12,14 +12,14 @@ import '../services/device_service.dart';
 
 enum ConnectionStatus { unknown, connected, disconnected }
 
-class TrackingScreen extends StatefulWidget {
-  const TrackingScreen({super.key});
+class LiveTrackingScreen extends StatefulWidget {
+  const LiveTrackingScreen({super.key});
 
   @override
-  State<TrackingScreen> createState() => _TrackingScreenState();
+  State<LiveTrackingScreen> createState() => _LiveTrackingScreenState();
 }
 
-class _TrackingScreenState extends State<TrackingScreen> {
+class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   bool _isTracking = false;
   bool _cloudSync = true;
 
@@ -31,13 +31,21 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   final LocationRepository _locationRepository = LocationRepository();
   final ApiService _apiService =
-      ApiService(baseUrl: 'http://YOUR_FASTAPI_URL'); // Replace your API URL
+      ApiService(baseUrl: 'http://YOUR_FASTAPI_URL'); // Replace with your API URL
   final DeviceService _deviceService = DeviceService();
 
   String? unitId;
   Timer? _apiTimer;
 
+  late Future<List<LocationModel>> _historyFuture; // Future for history list
   List<LocationModel> _locations = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize the future that fetches saved locations for the list
+    _historyFuture = _locationRepository.getLocationHistory();
+  }
 
   @override
   void dispose() {
@@ -54,7 +62,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
     unitId = await _deviceService.getDeviceId();
 
-    // Start API sync timer only if cloud sync enabled
+    // Setup API sync timer if cloud sync enabled
     _apiTimer?.cancel();
     if (_cloudSync) {
       _apiTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
@@ -113,7 +121,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
           _status = ConnectionStatus.connected;
         });
 
-        // Save locally always (regardless of cloud sync)
         final location = LocationModel(
           latitude: pos.latitude,
           longitude: pos.longitude,
@@ -141,7 +148,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
       _status = ConnectionStatus.unknown;
     });
 
-    // Save last position and sync if cloud sync enabled
     if (_position != null && unitId != null) {
       try {
         final location = LocationModel(
@@ -154,6 +160,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
         if (_cloudSync) {
           await _apiService.sendLocation(unitId: unitId!, location: location);
         }
+        // Refresh history list after saving new location
+        _refreshHistory();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -169,47 +177,47 @@ class _TrackingScreenState extends State<TrackingScreen> {
           );
         }
       } catch (e) {
-        // Optionally handle errors here
+        // handle error silently or show error if needed
       }
     }
   }
 
-  Future<void> _downloadLocations() async {
-  final allLocations = await _locationRepository.getLocationHistory();
+  Future<void> _refreshHistory() async {
     setState(() {
-      _locations = allLocations;
+      _historyFuture = _locationRepository.getLocationHistory();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Downloaded ${allLocations.length} locations.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
-  Future<void> _refreshLocations() async {
-   final allLocations = await _locationRepository.getLocationHistory();
+  Future<void> _clearHistory() async {
+    await _locationRepository.clearHistory();
+    await _refreshHistory();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'History cleared!',
+            style: TextStyle(color: Colors.black),
+          ),
+          backgroundColor: Colors.green.shade100,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
-    setState(() {
-      _locations = allLocations;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Locations refreshed.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  String _formatDate(DateTime date) {
+    return DateFormat('yyyy-MM-dd – kk:mm:ss').format(date);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tracking'),
+        title: const Text('Live Tracking'),
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
         actions: [
-          // Cloud Sync Toggle
           Row(
             children: [
               Text(
@@ -225,24 +233,44 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   if (_isTracking) {
                     _apiTimer?.cancel();
                     if (_cloudSync) {
-                      // Restart API sync timer
                       _startTracking();
                     }
                   }
                 },
                 activeColor: Colors.white,
               ),
-              // Download Button
               IconButton(
-                tooltip: 'Download Locations',
-                icon: const Icon(Icons.download),
-                onPressed: _downloadLocations,
-              ),
-              // Refresh Button
-              IconButton(
-                tooltip: 'Refresh Locations',
+                tooltip: 'Refresh History',
                 icon: const Icon(Icons.refresh),
-                onPressed: _refreshLocations,
+                onPressed: _refreshHistory,
+              ),
+              IconButton(
+                tooltip: 'Clear History',
+                icon: const Icon(Icons.delete_forever),
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Clear History'),
+                      content: const Text(
+                        'Are you sure you want to clear all saved locations?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Clear'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    await _clearHistory();
+                  }
+                },
               ),
             ],
           ),
@@ -252,12 +280,97 @@ class _TrackingScreenState extends State<TrackingScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Row(children: [Expanded(child: _buildStatusCard())]),
+            // Status card
+            _buildStatusCard(),
             const SizedBox(height: 16),
-            Row(children: [Expanded(child: _buildLocationCard())]),
+            // Current location card
+            _buildLocationCard(),
             const SizedBox(height: 16),
-            Expanded(child: _buildLocationsList()),
+            // History list with FutureBuilder
+            Expanded(
+              child: FutureBuilder<List<LocationModel>>(
+                future: _historyFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text(
+                        'Error loading history: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    );
+                  }
+                  final locations = snapshot.data ?? [];
+                  if (locations.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No saved locations.',
+                        style:
+                            TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: _refreshHistory,
+                    child: ListView.separated(
+                      itemCount: locations.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final loc = locations[index];
+                        return Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.location_on,
+                              color: Colors.blueAccent,
+                            ),
+                            title: Text(
+                              'Lat: ${loc.latitude.toStringAsFixed(6)}, Lng: ${loc.longitude.toStringAsFixed(6)}',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Accuracy: ${loc.accuracy.toStringAsFixed(2)} m'),
+                                Text('Time: ${_formatDate(loc.timestamp)}'),
+                              ],
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.copy, color: Colors.grey),
+                              tooltip: 'Copy coordinates',
+                              onPressed: () {
+                                final coords =
+                                    '${loc.latitude}, ${loc.longitude}';
+                                Clipboard.setData(ClipboardData(text: coords));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Coordinates copied!',
+                                      style: TextStyle(color: Colors.black),
+                                    ),
+                                    backgroundColor: Colors.blue.shade100,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 16),
+            // Control button start/stop
             _buildControlButtons(),
           ],
         ),
@@ -301,7 +414,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
-  Widget _buildLocationCard() {
+   Widget _buildLocationCard() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -334,41 +447,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildLocationsList() {
-    if (_locations.isEmpty) {
-      return Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: SizedBox(
-          height: 150,
-          child: Center(
-            child: Text(
-              'No saved locations.',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      itemCount: _locations.length,
-      separatorBuilder: (context, i) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final loc = _locations[index];
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: const Icon(Icons.location_on, color: Colors.blueAccent),
-            title: Text('Lat: ${loc.latitude}, Lng: ${loc.longitude}'),
-            subtitle: Text('Time: ${loc.timestamp}'),
-          ),
-        );
-      },
     );
   }
 

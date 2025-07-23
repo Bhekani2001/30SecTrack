@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ttsectrack/repositories/account_repository.dart';
 import 'package:ttsectrack/screens/register_screen.dart';
+import 'package:ttsectrack/screens/landing_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ttsectrack/services/account_service.dart';
 import 'package:sqflite/sqflite.dart';
@@ -59,22 +60,31 @@ class _AccountScreenState extends State<AccountScreen> {
         return BlocProvider(
           create: (context) => AccountBloc(AccountService(AccountRepository(db))),
           child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Account Login'),
-          backgroundColor: Colors.blueAccent,
-          foregroundColor: Colors.white,
-        ),
-        body: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: BlocConsumer<AccountBloc, AccountState>(
-                listener: (context, state) {
-                  if (state is AccountLoginSuccess) {
-                    // Show success and optionally navigate
-                  }
-                },
-                builder: (context, state) {
+            appBar: AppBar(
+              title: const Text('Account Login'),
+              backgroundColor: Colors.blueAccent,
+              foregroundColor: Colors.white,
+            ),
+            body: Center(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: BlocConsumer<AccountBloc, AccountState>(
+                    listener: (context, state) async {
+                      if (state is AccountLoginSuccess) {
+                        Future.delayed(const Duration(seconds: 2), () {
+                          if (context.mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const LandingScreen(),
+                              ),
+                            );
+                          }
+                        });
+                      }
+                    },
+                    builder: (context, state) {
                   bool isLoading = state is AccountLoading;
                   String? errorMessage;
                   if (state is AccountLoginFailure) errorMessage = state.error;

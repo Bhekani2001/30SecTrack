@@ -51,4 +51,9 @@ class LocationRepository {
     final db = await database;
     await db.delete(_tableName);
   }
+
+  Future<List<LocationModel>> getAllLocations() async {
+  return getLocationHistory();
+}
+
 }
