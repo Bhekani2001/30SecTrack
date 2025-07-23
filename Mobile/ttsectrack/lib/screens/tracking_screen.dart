@@ -1,14 +1,13 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-
 import 'package:intl/intl.dart';
 
 import '../models/location_model.dart';
 import '../repositories/location_repository.dart';
 import '../services/api_service.dart';
 import '../services/device_service.dart';
+import 'history_screen.dart';
 
 enum ConnectionStatus { unknown, connected, disconnected }
 
@@ -31,13 +30,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   final LocationRepository _locationRepository = LocationRepository();
   final ApiService _apiService =
-      ApiService(baseUrl: 'http://YOUR_FASTAPI_URL'); // Replace your API URL
+      ApiService(baseUrl: 'http://YOUR_FASTAPI_URL'); // Replace with your actual API URL
   final DeviceService _deviceService = DeviceService();
 
   String? unitId;
   Timer? _apiTimer;
-
-  List<LocationModel> _locations = [];
 
   @override
   void dispose() {
@@ -54,7 +51,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
     unitId = await _deviceService.getDeviceId();
 
-    // Start API sync timer only if cloud sync enabled
     _apiTimer?.cancel();
     if (_cloudSync) {
       _apiTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
@@ -66,18 +62,19 @@ class _TrackingScreenState extends State<TrackingScreen> {
             timestamp: _position!.timestamp,
           );
           await _locationRepository.saveLocation(location);
-          final success = await _apiService.sendLocation(
-            unitId: unitId!,
-            location: location,
-          );
-          if (!success) {
+          try {
+            final success = await _apiService.sendLocation(
+              unitId: unitId!,
+              location: location,
+            );
+            if (!success) {
+              setState(() {
+                _errorMessage = 'Failed to sync with server.';
+              });
+            }
+          } catch (e) {
             setState(() {
-              _status = ConnectionStatus.disconnected;
-              _errorMessage = 'Failed to sync with server.';
-            });
-          } else {
-            setState(() {
-              _status = ConnectionStatus.connected;
+              _errorMessage = 'Error syncing: ${e.toString()}';
             });
           }
         }
@@ -109,11 +106,11 @@ class _TrackingScreenState extends State<TrackingScreen> {
       ).listen((pos) {
         setState(() {
           _position = pos;
-          _lastUpdated = DateFormat('yyyy-MM-dd – kk:mm:ss').format(DateTime.now());
+          _lastUpdated =
+              DateFormat('yyyy-MM-dd – kk:mm:ss').format(DateTime.now());
           _status = ConnectionStatus.connected;
         });
 
-        // Save locally always (regardless of cloud sync)
         final location = LocationModel(
           latitude: pos.latitude,
           longitude: pos.longitude,
@@ -141,7 +138,6 @@ class _TrackingScreenState extends State<TrackingScreen> {
       _status = ConnectionStatus.unknown;
     });
 
-    // Save last position and sync if cloud sync enabled
     if (_position != null && unitId != null) {
       try {
         final location = LocationModel(
@@ -168,35 +164,17 @@ class _TrackingScreenState extends State<TrackingScreen> {
             ),
           );
         }
-      } catch (e) {
-        // Optionally handle errors here
-      }
+      } catch (_) {}
     }
   }
 
-  Future<void> _downloadLocations() async {
-  final allLocations = await _locationRepository.getLocationHistory();
-    setState(() {
-      _locations = allLocations;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Downloaded ${allLocations.length} locations.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  Future<void> _refreshLocations() async {
-   final allLocations = await _locationRepository.getLocationHistory();
-
-    setState(() {
-      _locations = allLocations;
-    });
+  Future<void> _refreshLocationCard() async {
+    setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Locations refreshed.'),
+        content: Text('Location card refreshed.'),
         behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 1),
       ),
     );
   }
@@ -209,42 +187,32 @@ class _TrackingScreenState extends State<TrackingScreen> {
         backgroundColor: Colors.blueAccent,
         foregroundColor: Colors.white,
         actions: [
-          // Cloud Sync Toggle
-          Row(
-            children: [
-              Text(
-                _cloudSync ? 'Cloud' : 'Local',
-                style: const TextStyle(color: Colors.white),
-              ),
-              Switch(
-                value: _cloudSync,
-                onChanged: (val) {
-                  setState(() {
-                    _cloudSync = val;
-                  });
-                  if (_isTracking) {
-                    _apiTimer?.cancel();
-                    if (_cloudSync) {
-                      // Restart API sync timer
-                      _startTracking();
-                    }
-                  }
-                },
-                activeColor: Colors.white,
-              ),
-              // Download Button
-              IconButton(
-                tooltip: 'Download Locations',
-                icon: const Icon(Icons.download),
-                onPressed: _downloadLocations,
-              ),
-              // Refresh Button
-              IconButton(
-                tooltip: 'Refresh Locations',
-                icon: const Icon(Icons.refresh),
-                onPressed: _refreshLocations,
-              ),
-            ],
+          IconButton(
+            icon: Icon(_cloudSync ? Icons.cloud : Icons.sd_card),
+            onPressed: () {
+              setState(() {
+                _cloudSync = !_cloudSync;
+              });
+              if (_isTracking) {
+                _apiTimer?.cancel();
+                if (_cloudSync) _startTracking();
+              }
+            },
+          ),
+          IconButton(
+            tooltip: 'Refresh Location Card',
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshLocationCard,
+          ),
+          IconButton(
+            tooltip: 'View Location List',
+            icon: const Icon(Icons.list),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const HistoryScreen()),
+              );
+            },
           ),
         ],
       ),
@@ -255,9 +223,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
             Row(children: [Expanded(child: _buildStatusCard())]),
             const SizedBox(height: 16),
             Row(children: [Expanded(child: _buildLocationCard())]),
-            const SizedBox(height: 16),
-            Expanded(child: _buildLocationsList()),
-            const SizedBox(height: 16),
+            const Spacer(),
             _buildControlButtons(),
           ],
         ),
@@ -337,54 +303,22 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
-  Widget _buildLocationsList() {
-    if (_locations.isEmpty) {
-      return Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: SizedBox(
-          height: 150,
-          child: Center(
-            child: Text(
-              'No saved locations.',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return ListView.separated(
-      itemCount: _locations.length,
-      separatorBuilder: (context, i) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final loc = _locations[index];
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: const Icon(Icons.location_on, color: Colors.blueAccent),
-            title: Text('Lat: ${loc.latitude}, Lng: ${loc.longitude}'),
-            subtitle: Text('Time: ${loc.timestamp}'),
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildControlButtons() {
-    return ElevatedButton.icon(
-      icon: Icon(_isTracking ? Icons.stop : Icons.play_arrow),
-      label: Text(_isTracking ? 'Stop Tracking' : 'Start Tracking'),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        backgroundColor: _isTracking ? Colors.red : Colors.green,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        icon: Icon(_isTracking ? Icons.stop : Icons.play_arrow),
+        label: Text(_isTracking ? 'Stop Tracking' : 'Start Tracking'),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          backgroundColor: _isTracking ? Colors.red : Colors.green,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontSize: 16),
         ),
-        textStyle: const TextStyle(fontSize: 16),
+        onPressed: _isTracking ? _stopTracking : _startTracking,
       ),
-      onPressed: _isTracking ? _stopTracking : _startTracking,
     );
   }
 }
