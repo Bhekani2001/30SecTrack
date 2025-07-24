@@ -53,7 +53,16 @@ class LocationRepository {
   }
 
   Future<List<LocationModel>> getAllLocations() async {
-  return getLocationHistory();
-}
+    return getLocationHistory();
+  }
 
+  Future<int> getLocationHistoryCount() async {
+    final db = await database;
+    final result = await db.rawQuery('SELECT COUNT(*) AS count FROM $_tableName');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<int> getMovesCount() async {
+    return getLocationHistoryCount();
+  }
 }

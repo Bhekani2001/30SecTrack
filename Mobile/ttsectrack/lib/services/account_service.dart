@@ -12,46 +12,47 @@ class AccountService {
   AccountService(this.repository);
 
   Future<int> register(Account account) async {
-    final localId = await repository.register(account);
-
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(account.toMap()),
       );
-      if (response.statusCode != 200 && response.statusCode != 201) {
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final registeredAccount = Account.fromMap(data);
+        await repository.register(registeredAccount);
+        return registeredAccount.id ?? 0;
+      } else {
         throw Exception('Failed to register on server');
       }
     } catch (e) {
-      print('API register failed: $e');
+      // API failed, fallback to local DB
+      return await repository.register(account);
     }
-
-    return localId;
   }
 
   Future<Account?> login(String email, String password) async {
-    Account? account = await repository.login(email, password);
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
 
-    if (account == null) {
-      try {
-        final response = await http.post(
-          Uri.parse('$baseUrl/login'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'email': email, 'password': password}),
-        );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          account = Account.fromMap(data);
-          await repository.register(account);
-        }
-      } catch (e) {
-        print('API login failed: $e');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final account = Account.fromMap(data);
+        await repository.register(account);
+        return account;
+      } else {
+        throw Exception('API login failed');
       }
+    } catch (e) {
+      // Fallback to local DB login
+      return await repository.login(email, password);
     }
-
-    return account;
   }
 
   Future<Account?> getProfile(int id) async {
@@ -62,10 +63,10 @@ class AccountService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         account = Account.fromMap(data);
-        await repository.updateProfile(account); 
+        await repository.updateProfile(account);
       }
     } catch (e) {
-      print('API getProfile failed: $e');
+      // ignore, use local cached profile
     }
 
     return account;
@@ -84,7 +85,7 @@ class AccountService {
         throw Exception('Failed to update on server');
       }
     } catch (e) {
-      print('API updateProfile failed: $e');
+      // ignore API update failure, local update done
     }
 
     return rows;
@@ -106,7 +107,7 @@ class AccountService {
           await repository.register(account);
         }
       } catch (e) {
-        print('API forgotPassword failed: $e');
+        // ignore API failure
       }
     }
 

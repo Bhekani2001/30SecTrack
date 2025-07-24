@@ -93,34 +93,34 @@ class HomeScreen extends StatelessWidget {
                 Navigator.pop(context);
               },
             ),
-            _buildDrawerItem(
-              context,
-              icon: Icons.track_changes,
-              title: 'Tracking',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TrackingScreen(),
-                  ),
-                );
-              },
-            ),
-            _buildDrawerItem(
-              context,
-              icon: Icons.history,
-              title: 'History',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const HistoryScreen(),
-                  ),
-                );
-              },
-            ),
+            // _buildDrawerItem(
+            //   context,
+            //   icon: Icons.track_changes,
+            //   title: 'Tracking',
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (context) => const TrackingScreen(),
+            //       ),
+            //     );
+            //   },
+            // ),
+            // _buildDrawerItem(
+            //   context,
+            //   icon: Icons.history,
+            //   title: 'History',
+            //   onTap: () {
+            //     Navigator.pop(context);
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //         builder: (context) => const HistoryScreen(),
+            //       ),
+            //     );
+            //   },
+            // ),
             _buildDrawerItem(
               context,
               icon: Icons.account_circle,

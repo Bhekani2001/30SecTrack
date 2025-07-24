@@ -221,14 +221,7 @@ class _AccountScreenState extends State<AccountScreen> {
                                             : const Text('Login', style: TextStyle(fontSize: 18)),
                                       ),
                                     ),
-                                    const SizedBox(height: 12),
-                                    TextButton.icon(
-                                      icon: const Icon(Icons.help_outline, color: Colors.blueAccent),
-                                      onPressed: () {
-                                        // TODO: Implement forgot password navigation
-                                      },
-                                      label: const Text('Forgot Password?'),
-                                    ),
+
                                     const SizedBox(height: 8),
                                     Center(
                                       child: TextButton(

@@ -30,20 +30,17 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
   StreamSubscription<Position>? _positionSubscription;
 
   final LocationRepository _locationRepository = LocationRepository();
-  final ApiService _apiService =
-      ApiService(baseUrl: 'http://127.0.0.1:8000/tracking'); // Replace with your API URL
+  final ApiService _apiService = ApiService(baseUrl: 'http://127.0.0.1:8000/tracking');
   final DeviceService _deviceService = DeviceService();
 
   String? unitId;
   Timer? _apiTimer;
 
-  late Future<List<LocationModel>> _historyFuture; // Future for history list
-  List<LocationModel> _locations = [];
+  late Future<List<LocationModel>> _historyFuture;
 
   @override
   void initState() {
     super.initState();
-    // Initialize the future that fetches saved locations for the list
     _historyFuture = _locationRepository.getLocationHistory();
   }
 
@@ -58,40 +55,12 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     setState(() {
       _isTracking = true;
       _errorMessage = null;
+      _status = ConnectionStatus.unknown;
     });
 
     unitId = await _deviceService.getDeviceId();
 
-    // Setup API sync timer if cloud sync enabled
-    _apiTimer?.cancel();
-    if (_cloudSync) {
-      _apiTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
-        if (_position != null && unitId != null) {
-          final location = LocationModel(
-            latitude: _position!.latitude,
-            longitude: _position!.longitude,
-            accuracy: _position!.accuracy,
-            timestamp: _position!.timestamp,
-          );
-          await _locationRepository.saveLocation(location);
-          final success = await _apiService.sendLocation(
-            unitId: unitId!,
-            location: location,
-          );
-          if (!success) {
-            setState(() {
-              _status = ConnectionStatus.disconnected;
-              _errorMessage = 'Failed to sync with server.';
-            });
-          } else {
-            setState(() {
-              _status = ConnectionStatus.connected;
-            });
-          }
-        }
-      });
-    }
-
+    // Start listening to location updates immediately, saving locally every time
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied ||
@@ -114,7 +83,8 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
           accuracy: LocationAccuracy.high,
           distanceFilter: 10,
         ),
-      ).listen((pos) {
+      ).listen((pos) async {
+        // Update current position and UI immediately
         setState(() {
           _position = pos;
           _lastUpdated = DateFormat('yyyy-MM-dd – kk:mm:ss').format(DateTime.now());
@@ -127,13 +97,51 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
           accuracy: pos.accuracy,
           timestamp: pos.timestamp,
         );
-        _locationRepository.saveLocation(location);
+
+        // Save location locally every update
+        await _locationRepository.saveLocation(location);
+        // Optionally refresh history list
+        _refreshHistory();
       });
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
         _status = ConnectionStatus.disconnected;
         _isTracking = false;
+      });
+      return;
+    }
+
+    // Setup periodic API sync every 30 seconds if cloud sync enabled
+    _apiTimer?.cancel();
+    if (_cloudSync) {
+      _apiTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+        if (_position != null && unitId != null) {
+          final location = LocationModel(
+            latitude: _position!.latitude,
+            longitude: _position!.longitude,
+            accuracy: _position!.accuracy,
+            timestamp: _position!.timestamp,
+          );
+
+          // Only send to API here, no local save to avoid duplicates
+          final success = await _apiService.sendLocation(
+            unitId: unitId!,
+            location: location,
+          );
+
+          if (!success) {
+            setState(() {
+              _status = ConnectionStatus.disconnected;
+              _errorMessage = 'Failed to sync with server.';
+            });
+          } else {
+            setState(() {
+              _status = ConnectionStatus.connected;
+              _errorMessage = null;
+            });
+          }
+        }
       });
     }
   }
@@ -147,39 +155,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       _isTracking = false;
       _status = ConnectionStatus.unknown;
     });
-
-    if (_position != null && unitId != null) {
-      try {
-        final location = LocationModel(
-          latitude: _position!.latitude,
-          longitude: _position!.longitude,
-          accuracy: _position!.accuracy,
-          timestamp: _position!.timestamp,
-        );
-        await _locationRepository.saveLocation(location);
-        if (_cloudSync) {
-          await _apiService.sendLocation(unitId: unitId!, location: location);
-        }
-        // Refresh history list after saving new location
-        _refreshHistory();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Location saved successfully!',
-                style: TextStyle(color: Colors.black),
-              ),
-              backgroundColor: Colors.green.shade100,
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        // handle error silently or show error if needed
-      }
-    }
   }
 
   Future<void> _refreshHistory() async {
@@ -280,7 +255,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-
             Row(
               children: [
                 Expanded(child: _buildStatusCard()),
@@ -293,7 +267,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            // History list with FutureBuilder (keep this part)
             Expanded(
               child: FutureBuilder<List<LocationModel>>(
                 future: _historyFuture,
@@ -304,7 +277,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
                   if (snapshot.hasError) {
                     return Center(
                       child: Text(
-                        'Error loading history: [${snapshot.error}',
+                        'Error loading history: [${snapshot.error}]',
                         style: const TextStyle(color: Colors.red),
                       ),
                     );
@@ -375,7 +348,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Control button start/stop
             _buildControlButtons(),
           ],
         ),
@@ -419,7 +391,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
     );
   }
 
-   Widget _buildLocationCard() {
+  Widget _buildLocationCard() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
