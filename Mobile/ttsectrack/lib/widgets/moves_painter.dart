@@ -19,7 +19,6 @@ class MovesPainter extends CustomPainter {
       ..color = Colors.red
       ..style = PaintingStyle.fill;
 
-    // Normalize the lat/lng to fit the canvas
     double minLat = locations.map((e) => e.latitude).reduce((a, b) => a < b ? a : b);
     double maxLat = locations.map((e) => e.latitude).reduce((a, b) => a > b ? a : b);
     double minLng = locations.map((e) => e.longitude).reduce((a, b) => a < b ? a : b);
@@ -30,7 +29,7 @@ class MovesPainter extends CustomPainter {
 
     Offset mapToOffset(double lat, double lng) {
       double x = (lng - minLng) / lngRange * size.width;
-      double y = size.height - ((lat - minLat) / latRange * size.height); // flip y
+      double y = size.height - ((lat - minLat) / latRange * size.height); 
       return Offset(x, y);
     }
 
@@ -41,7 +40,6 @@ class MovesPainter extends CustomPainter {
       canvas.drawCircle(start, 6, dotPaint);
     }
 
-    // draw last dot
     final last = mapToOffset(locations.last.latitude, locations.last.longitude);
     canvas.drawCircle(last, 6, dotPaint);
   }

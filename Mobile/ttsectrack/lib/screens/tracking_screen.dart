@@ -30,7 +30,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   final LocationRepository _locationRepository = LocationRepository();
   final ApiService _apiService =
-      ApiService(baseUrl: 'http://YOUR_FASTAPI_URL'); // Replace with your actual API URL
+      ApiService(baseUrl: 'http://127.0.0.1:8000/tracking');
   final DeviceService _deviceService = DeviceService();
 
   String? unitId;

@@ -24,7 +24,6 @@ class ApiService {
       );
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      // Optionally log error
       return false;
     }
   }
@@ -42,7 +41,6 @@ class ApiService {
       }
       return [];
     } catch (e) {
-      // Optionally log error
       return [];
     }
   }

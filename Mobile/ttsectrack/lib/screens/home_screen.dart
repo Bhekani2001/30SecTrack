@@ -177,7 +177,6 @@ class HomeScreen extends StatelessWidget {
                   elevation: 0,
                 ),
                 onPressed: () {
-                  // TODO: Implement rate app or feedback
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Thank you for your feedback!'),

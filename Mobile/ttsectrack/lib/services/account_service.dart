@@ -7,7 +7,7 @@ import '../repositories/account_repository.dart';
 class AccountService {
   final AccountRepository repository;
 
-  final String baseUrl = 'http://10.0.2.2:8000/api/accounts'; 
+  final String baseUrl = 'http://10.0.2.2:8000/auth'; 
 
   AccountService(this.repository);
 
@@ -28,7 +28,6 @@ class AccountService {
         throw Exception('Failed to register on server');
       }
     } catch (e) {
-      // API failed, fallback to local DB
       return await repository.register(account);
     }
   }
@@ -50,7 +49,6 @@ class AccountService {
         throw Exception('API login failed');
       }
     } catch (e) {
-      // Fallback to local DB login
       return await repository.login(email, password);
     }
   }
@@ -66,7 +64,6 @@ class AccountService {
         await repository.updateProfile(account);
       }
     } catch (e) {
-      // ignore, use local cached profile
     }
 
     return account;
@@ -85,7 +82,6 @@ class AccountService {
         throw Exception('Failed to update on server');
       }
     } catch (e) {
-      // ignore API update failure, local update done
     }
 
     return rows;
@@ -107,7 +103,6 @@ class AccountService {
           await repository.register(account);
         }
       } catch (e) {
-        // ignore API failure
       }
     }
 

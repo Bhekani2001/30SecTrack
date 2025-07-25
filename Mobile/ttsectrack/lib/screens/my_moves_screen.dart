@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // <-- For Clipboard
+import 'package:flutter/services.dart';
 import '../models/location_model.dart';
 import '../repositories/location_repository.dart';
 
@@ -21,7 +21,6 @@ class _MyMovesScreenState extends State<MyMovesScreen> {
     _loadHistoryAndCount();
   }
 
-  // Load both history and count
   void _loadHistoryAndCount() {
     setState(() {
       _historyFuture = _repository.getLocationHistory();
@@ -29,7 +28,6 @@ class _MyMovesScreenState extends State<MyMovesScreen> {
     _loadCount();
   }
 
-  // Load count separately
   Future<void> _loadCount() async {
     final count = await _repository.getLocationHistoryCount();
     if (mounted) {

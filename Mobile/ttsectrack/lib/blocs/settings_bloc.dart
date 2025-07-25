@@ -54,8 +54,6 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
 
   Future<void> _onClearHistory(
       ClearHistoryEvent event, Emitter<SettingsState> emit) async {
-    // TODO: Add real clear logic here e.g., repository.clearHistory()
-    // Simulate delay:
     await Future.delayed(const Duration(milliseconds: 500));
   }
 }

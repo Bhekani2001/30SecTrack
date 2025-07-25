@@ -56,7 +56,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text,
       );
 
-      await service.register(account); // API first, fallback local
+      await service.register(account); 
 
       setState(() {
         _isLoading = false;

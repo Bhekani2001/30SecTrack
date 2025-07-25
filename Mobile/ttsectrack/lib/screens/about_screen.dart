@@ -88,7 +88,6 @@ class AboutScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // Modern left-aligned bullet list
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: const [
@@ -127,7 +126,6 @@ class AboutScreen extends StatelessWidget {
                     style: TextStyle(color: Colors.blueAccent, fontSize: 16),
                   ),
                   onPressed: () {
-                    // TODO: Implement email launch or feedback form
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Contact: support@mobitra.com'),

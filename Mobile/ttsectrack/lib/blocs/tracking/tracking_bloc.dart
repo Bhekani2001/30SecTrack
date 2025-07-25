@@ -5,14 +5,12 @@ import '../../models/location_model.dart';
 import 'tracking_event.dart';
 import 'tracking_state.dart';
 
-/// Abstracts location service for testability and separation of concerns.
 abstract class ILocationService {
   Stream<Position> getPositionStream({LocationSettings? settings});
   Future<LocationPermission> checkPermission();
   Future<LocationPermission> requestPermission();
 }
 
-/// Default implementation using geolocator.
 class GeolocatorService implements ILocationService {
   @override
   Stream<Position> getPositionStream({LocationSettings? settings}) =>
@@ -28,14 +26,12 @@ class GeolocatorService implements ILocationService {
       Geolocator.requestPermission();
 }
 
-/// Abstracts local storage for location history.
 abstract class ILocationRepository {
   Future<void> saveLocation(LocationModel location);
   Future<List<LocationModel>> getLocationHistory();
   Future<void> clearHistory();
 }
 
-/// Bloc for handling tracking logic.
 class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
   final ILocationService locationService;
   final ILocationRepository? locationRepository;
@@ -114,11 +110,9 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
     Emitter<TrackingState> emit,
   ) async {
     emit(TrackingSuccess(event.location));
-    // Save to local DB if repository is provided
     if (locationRepository != null) {
       await locationRepository!.saveLocation(event.location);
     }
-    // Optionally: Add API sync here
   }
 
   void _onTrackingErrorOccurred(
@@ -167,7 +161,6 @@ class TrackingBloc extends Bloc<TrackingEvent, TrackingState> {
   }
 }
 
-// --- Add these events to your tracking_event.dart for advanced features ---
 
 class LoadTrackingHistory extends TrackingEvent {}
 

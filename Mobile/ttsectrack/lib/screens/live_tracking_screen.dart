@@ -60,7 +60,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
 
     unitId = await _deviceService.getDeviceId();
 
-    // Start listening to location updates immediately, saving locally every time
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied ||
@@ -84,7 +83,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
           distanceFilter: 10,
         ),
       ).listen((pos) async {
-        // Update current position and UI immediately
         setState(() {
           _position = pos;
           _lastUpdated = DateFormat('yyyy-MM-dd – kk:mm:ss').format(DateTime.now());
@@ -98,9 +96,7 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
           timestamp: pos.timestamp,
         );
 
-        // Save location locally every update
         await _locationRepository.saveLocation(location);
-        // Optionally refresh history list
         _refreshHistory();
       });
     } catch (e) {
@@ -112,7 +108,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
       return;
     }
 
-    // Setup periodic API sync every 30 seconds if cloud sync enabled
     _apiTimer?.cancel();
     if (_cloudSync) {
       _apiTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
@@ -124,7 +119,6 @@ class _LiveTrackingScreenState extends State<LiveTrackingScreen> {
             timestamp: _position!.timestamp,
           );
 
-          // Only send to API here, no local save to avoid duplicates
           final success = await _apiService.sendLocation(
             unitId: unitId!,
             location: location,
